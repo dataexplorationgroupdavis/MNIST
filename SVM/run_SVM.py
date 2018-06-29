@@ -1,7 +1,8 @@
 # python3
 from mnist import MNIST
 import numpy as np
-from sklearn import svm
+import pandas as pd
+from sklearn import svm, metrics
 
 mndata = MNIST('../samples')
 Xtrain, ytrain = mndata.load_training()
@@ -12,28 +13,34 @@ ytrainArr = np.array(ytrain)
 XtestArr = np.array(Xtest)
 ytestArr = np.array(ytest)
 
-# take subsets to run svm
-indexesList = [np.random.choice(range(60000), size=s, replace=False) \
-               # for s in [100, 1000, 10000, 20000, 30000, 40000, 50000, 60000]]
-	       for s in [10000, 20000, 30000, 40000, 50000, 60000]]
-
 from time import time
 
-for indexes in indexesList:
-    print('\n', "-------------------------", '\n')
-    starttime = time()
-    XtrainTemp = XtrainArr[indexes]
-    ytrainTemp = ytrainArr[indexes]
+result = {}
+# we choose to use radial kernel
+for C in [1, 5, 10, 100, 200]:
+    for gamma in [0.001, 0.01, 0.05, 0.1, 0.5]:
+        print('\n', "-------------------------", '\n')
+        starttime = time()
+        
+        print(("C: {}, gamma: {}").format(C, gamma))
+        clf = svm.SVC(C=C, gamma=gamma)
+        clf.fit(XtrainArr/255.0, ytrainArr)
+        predictions = clf.predict(XtestArr/255.0)
+        
+        correct = sum(predictions == ytestArr)
+        
+        acc = correct / float(len(ytest))
+        score = clf.score(XtestArr/255.0, ytestArr)
+        timeUsed = time() - starttime
+        print(("Accuracy: {}").format(acc))
+        print(("Score: {}").format(score))
+        print(("Time spent: {}").format(timeUsed))
+        print(metrics.confusion_matrix(ytestArr, predictions))
+        result['C'] = C
+        result['gamma'] = gamma
+        result['acc'] = acc
+        result['score'] = score
+        result['time'] = timeUsed
 
-    print(("training size: {}").format(len(indexes)))
-    # print("start training")
-    # clf = svm.SVC(kernel='linear')
-    clf = svm.LinearSVC(C=1)
-    clf.fit(XtrainTemp, ytrainTemp)
-    predictions = clf.predict(XtestArr)
-    correct = sum(predictions == ytestArr)
-    
-    acc = correct / float(len(ytest))
-    
-    print(("Accuracy: {}").format(acc))
-    print(("Time spent: {}").format(time() - starttime))
+df = pd.DataFrame(result)
+print(df)
